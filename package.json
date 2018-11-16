@@ -1,0 +1,36 @@
+{
+  "name": "linkup-backend",
+  "version": "1.0.0",
+  "description": "WebSocket server + Kafka",
+  "main": "app.js",
+  "dependencies": {
+    "express": "^4.16.3",
+    "kafka-node": "^3.0.1",
+    "socket.io": "^2.1.1"
+  },
+  "devDependencies": {
+    "eslint": "^5.6.1",
+    "eslint-config-standard": "^12.0.0",
+    "eslint-plugin-import": "^2.14.0",
+    "eslint-plugin-node": "^7.0.1",
+    "eslint-plugin-promise": "^4.0.1",
+    "eslint-plugin-standard": "^4.0.0"
+  },
+  "scripts": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kimkb2011/linkup-backend.git"
+  },
+  "keywords": [
+    "Kafka",
+    "Socket.io"
+  ],
+  "author": "Jeff Kim",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/kimkb2011/linkup-backend/issues"
+  },
+  "homepage": "https://github.com/kimkb2011/linkup-backend#readme"
+}
