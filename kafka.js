@@ -49,7 +49,7 @@ function getPositionFromOffset(data, topicName, callback) {
     const consumer = new kafka.Consumer(client, [{ 
       topic: topicName,
       partition: parseInt(partition),
-      offset: off == 0 ? 0 : off - 1
+      offset: off < 1 ? 0 : off - 1
     }], consumerOptions);
     consumer.on('error', (error) => {
       console.log('error: ', error);
