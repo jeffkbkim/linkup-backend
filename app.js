@@ -1,4 +1,5 @@
 let express = require('express');
+const kafka = require('./kafka.js');
 let app = express();
 
 let http = require('http');
@@ -6,28 +7,38 @@ let server = http.Server(app);
 
 let socketIO = require('socket.io');
 let io = socketIO(server);
-let userIdCounter = 1;
+let userIdCounter = 0;
 const port = process.env.PORT || 3000;
 
+
+function getLastPosition(userId) {
+    console.log('user: ' + userId + ' disconnected.');
+    const JSONbody = kafka.getLastPosition(userId, (JSONbody) => {
+        const lastPosition = JSON.parse(JSONbody.value)
+        lastPosition.isDisconnected = true;
+        console.log('lastPosition', lastPosition);
+        io.sockets.emit('groupId: 100', lastPosition);
+    });
+}
+
 io.on('connection', (socket) => {
-    console.log('user connected');
-    socket.in('groupId: 100').emit('event', 'message');
-    socket.emit('userId', userIdCounter);
-    console.log(userIdCounter);
+    console.log('user connected');    
+    const userId = userIdCounter;
+    console.log(userId);
+    socket.emit('userId', userId);
+    kafka.createTopic(userId);
     userIdCounter++;
-    socket.on('userId: 1', (position) => {
-        console.log(position);
-        //         
-    });
+
     socket.on('disconnect', (socket) => {
-        console.log('user disconnected.');
+        getLastPosition(userId);
     });
+
     socket.on('groupId: 100', (position) => {
         console.log(position);
         io.sockets.emit('groupId: 100', position);
+        kafka.writeToTopic(userId, position);
     });
 });
-
 
 server.listen(port, () => {
     console.log(`started on port: ${port}`);

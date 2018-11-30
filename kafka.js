@@ -1,107 +1,69 @@
-// const app = require('express')
-// const http = require('http').Server(app)
-// const io = require('socket.io')(http)
-const kafka = require('kafka-node')
+const kafka = require('kafka-node');
+const kafkaHost = 'localhost:9092';
+const client = new kafka.KafkaClient({kafkaHost: kafkaHost});
+const producer = new kafka.HighLevelProducer(client);
+const offset = new kafka.Offset(client);
+const topic_prefix = 'userId_';
+let map = {};
 
-// function callSockets (io, message) {
-//   io.sockets.emit('channel', message)
-// }
+function createTopic(userId) {
+  const topicName = topic_prefix + userId;
+  client.loadMetadataForTopics([topicName], (err, response) => {});
+}
 
-// const kafkaClient = new kafka.KafkaClient()
-const client = new kafka.Client()
-let producer = new kafka.HighLevelProducer(client)
-let consumer = new kafka.HighLevelConsumer(client, [{ topic: 'topic3' }, { topic: 'topic4' }])
-consumer.on('message', (message) => {
-  console.log(message)
-})
-producer.on('ready', () => {
-  console.log('ready')
-})
-producer.on('error', () => {
-  console.log('err')
-})
-const record = [
-  {
-    topic: 'topic3',
-    messages: ['hi'],
-    attributes: 1 /* Use GZip compression for the payload */
-  }
-]
-const topicsToCreate = [{
-  topic: 'topic1',
-  partitions: 2,
-  replicationFactor: 1
-},
-{
-  topic: 'topic2',
-  partitions: 2,
-  replicationFactor: 1
-}]
-
-const newTopics = ['topic3', 'topic4']
-
-client.on('ready', () => {
-  initTopics()
-})
-
-function initTopics () {
-  client.createTopics(newTopics, (err, result) => {
-    if (err) console.log('err', err)
-    else {
-      console.log('result', result)
-      initProducers()
-    }
+function writeToTopic(userId, position) {
+  const topicName = topic_prefix + userId;
+  console.log('topicName:',topicName);
+  producer.send([{
+    topic: topicName,
+    messages: JSON.stringify(position)
+  }], (err, data) => {
+    console.log('sent to topic ' + topicName, data);
   })
 }
 
-function initProducers () {
-  // const producer = new kafka.HighLevelProducer(client)
-
-  producer.send(record, (err, result) => {
-    if (err) console.log('err', err)
-    else {
-      console.log('result', result)
+function getLastPosition(userId, callback) {
+  offset.fetch([{ topic: topic_prefix + userId, time: -1 }], (err, data) => {
+    if (err) {
+      console.log('err', err);
+      return;
     }
-  })
+    const topicName = topic_prefix + userId;
+
+    return getPositionFromOffset(data, topicName, callback);
+    
+  });
 }
 
-// kafkaClient.on('ready', (err, result) => {
-//   if (err) {
-//     console.log('err.')
-//     console.log(err)
-//   } else {
-//     kafkaClient.createTopics(topicsToCreate, (error, result) => {
-//       // result is an array of any errors if a given topic could not be created
-//       console.log('here.')
-//       if (error) console.log('err', error)
-//       else console.log('result', result)
-//     })
-//   }
-// })
+function getPositionFromOffset(data, topicName, callback) {
+  console.log('getting last position from topic: ', topicName);
 
-// const consumer1 = new kafka.ConsumerGroup({
-//   kafkaHost: 'localhost:2181'
-// }, 'topic12')
-// const consumer2 = new kafka.ConsumerGroup()
+    const obj = data[topicName];
+    const partition = Object.keys(obj)[0];
+    const off = obj[partition][0];
+    console.log(parseInt(partition), typeof(parseInt(partition)), off, typeof(off));
+    const consumerOptions = {
+      groupId: topicName,
+      fromOffset: true
+    }
+    const consumer = new kafka.Consumer(client, [{ 
+      topic: topicName,
+      partition: parseInt(partition),
+      offset: off == 0 ? 0 : off - 1
+    }], consumerOptions);
+    consumer.on('error', (error) => {
+      console.log('error: ', error);
+    });
+    consumer.on('offsetOutOfRange', (error) => {
+      console.log('error: ', error);
+    });
+    consumer.on('message', (message) => {
+      console.log('message: ', message);
+      consumer.pause();
+      return callback(message);
+    });
+}
 
-// consumer1.on('message', function (message) {
-//   console.log(message)
-//   callSockets(io, message)
-// })
-// consumer2.on('message', function (message) {
-//   console.log(message)
-//   callSockets(io, message)
-// })
-// const producer = new kafka.HighLevelProducer(new kafka.Client())
-
-// const payloads = [
-//   { topic: 'topic1', messages: 'hi' },
-//   { topic: 'topic2', messages: ['hello', 'world'] }
-// ]
-
-// producer.on('ready', function () {
-//   console.log('in producer ready.')
-//   producer.send(payloads, function (err, data) {
-//     if (err) { console.log(err) } else { console.log(data) }
-//   })
-// })
+module.exports.createTopic = createTopic;
+module.exports.writeToTopic = writeToTopic;
+module.exports.getLastPosition = getLastPosition;
